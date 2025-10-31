@@ -1,15 +1,11 @@
 import numpy as np
 import cv2
 import time
-from functions import blur, hsv, mask_generator, track, draw_rect, contour_operation, check_rect, read_file, clean, green, eraser, red, blue, write_file
+from functions import mask_generator, track, draw_rect, contour_operation, check_rect
 
 
-paint=True
-er=False
-status="draw"
-f=open("mode.txt","w+")
-f.write("clean")
-f.close()
+status="clean"
+pic_no= 1
 
 video=cv2.VideoCapture(0)
 video.set(10,1000)
@@ -18,52 +14,60 @@ while True:
     check,img=video.read()
     if check==True:
         break
+    
 canvas=np.ones_like(img)*255
 
 def nothing(x):
     pass
 
 cv2.namedWindow("Setter")
-cv2.createTrackbar("LH","Setter",0,179,nothing)
-cv2.createTrackbar("LS","Setter",0,255,nothing)
-cv2.createTrackbar("LV","Setter",0,255,nothing)
-cv2.createTrackbar("UH","Setter",179,179,nothing)
-cv2.createTrackbar("US","Setter",255,255,nothing)
-cv2.createTrackbar("UV","Setter",255,255,nothing)
 
+trackbars = [
+    ("LH", 0, 179),
+    ("LS", 0, 255),
+    ("LV", 0, 255),
+    ("UH", 179, 179),
+    ("US", 255, 255),
+    ("UV", 255, 255)
+]
+
+for name, initial_val, max_val in trackbars:
+    cv2.createTrackbar(name, "Setter", initial_val, max_val, nothing)
 
 
 while True:
     _,img=video.read()
     img=cv2.flip(img,1)
     
-    blur_img=blur(img)
-    hsv_img=hsv(blur_img)
+    blur_img=cv2.GaussianBlur(img,(11,11),0)
+    hsv_img=cv2.cvtColor(blur_img,cv2.COLOR_BGR2HSV)
+
     lh,ls,lv,uh,us,uv=track()
+
     mask=mask_generator(lh,ls,lv,uh,us,uv,hsv_img)
     img=draw_rect(img)
     x,y=contour_operation(mask,img)
 
-    check_rect(x,y)
-
-    status=read_file()
+    
+    status=check_rect(x,y,status)
 
     
 
     if status=="clean":
-        canvas=clean(canvas,x,y)
+        canvas=np.ones_like(img)*255
     if status=="green":
-        canvas=green(canvas,x,y)
+        cv2.circle(canvas,(x+10,y+5),8,(0,255,0),cv2.FILLED)
     if status=="eraser":
-        canvas=eraser(canvas,x,y)
+        cv2.circle(canvas,(x+10,y+5),24,(255,255,255),cv2.FILLED)
     if status=="red":
-        canvas=red(canvas,x,y)
+        cv2.circle(canvas,(x+10,y+5),8,(0,0,255),cv2.FILLED)
     if status=="blue":
-        canvas=blue(canvas,x,y)
+        cv2.circle(canvas,(x+10,y+5),8,(255,0,0),cv2.FILLED)
     if status=="save":
-        cv2.imwrite("img/pic.jpg",canvas)
+        cv2.imwrite(f"img/pic{pic_no}.jpg",canvas)
+        pic_no+=1
         time.sleep(0.4)
-        write_file("clean")
+        status = "clean"
 
 
     
@@ -77,4 +81,3 @@ while True:
         
 video.release()
 cv2.destroyAllWindows()
-
